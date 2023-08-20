@@ -1,0 +1,101 @@
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class WithoutUsingBlockingQLocks {
+    public static class BlockingQueue<E>  //We will use lock
+    {
+        private Queue<E> queue; // Using Queue interface
+        private int max = 15;
+
+        private ReentrantLock lock = new ReentrantLock(true);
+
+        private Condition notEmpty = lock.newCondition();   // Java comes with the functionality of the condition
+
+        private Condition notFull = lock.newCondition();
+
+        public BlockingQueue(int size) {
+            queue = new LinkedList<>(); //Declaration of Queue using with Generic E , that is the the type of object that will be stored
+            this.max = size;// Can also be an array but need to track the head and the tail indexes
+
+        }
+
+        public void put(E e) {
+            lock.lock();  // protected by a lock
+            try {
+                while (queue.size() == max) {
+                    notFull.await(); // the thread goes to the wait stage & waits till the Queue is not full
+                }
+                queue.add(e);  // used try finally block because there can be a case when there is some error while doing the add operation and the lock is never released , to ensure that the lock is always released we use the try finally block
+                notEmpty.signalAll(); //After adding , it tells the consumer that the it is not empty because an item has just been added, the consumer threads willl now become runnable and any one of the thread will be executed
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            } finally {
+                lock.unlock();
+
+            }
+        }
+
+        public E take() {
+            lock.lock();
+            try {
+                while (queue.size() == 0) { //while is used instead of if block because the queue size needs to be checked everytime when there are multiple threads in the waiting block & they become runnable, after one thread is implemented the thread would get null.
+                    notEmpty.await();
+                }
+
+                E item = queue.remove();
+                notFull.signalAll();
+
+                return item;
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+
+    }
+
+    public static void main(String[] args) {
+       BlockingQueue<Integer> blockingQueue = new BlockingQueue<>(10);
+
+        // Producer thread
+        Thread producerThread = new Thread(() -> {
+            for (int i = 0; i < 20; i++) {
+                try {
+                    blockingQueue.put(i);
+                    System.out.println("Produced: " + i);
+                    Thread.sleep(100); // Simulate some work
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        // Consumer thread
+        Thread consumerThread = new Thread(() -> {
+            for (int i = 0; i < 20; i++) {
+                try {
+                    int item = blockingQueue.take();
+                    System.out.println("Consumed: " + item);
+                    Thread.sleep(200); // Simulate some work
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        producerThread.start();
+        consumerThread.start();
+
+        try {
+            producerThread.join();
+            consumerThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
