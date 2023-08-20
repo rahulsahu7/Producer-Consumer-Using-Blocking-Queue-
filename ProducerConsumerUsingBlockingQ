@@ -1,0 +1,65 @@
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
+public class ProducerConsumerUsingBlockingQ {
+    public static void main(String[] args) {
+        //Blocking Queue is thread safe DS,It implements blocking operation as well with the .put() & .take()
+        BlockingQueue<Item> queue = new ArrayBlockingQueue<>(10); //ArrayBlockingQueue class is a bounded blocking queue backed by an array. By bounded, it means that the size of the Queue is fixed.
+        final Runnable producer =() ->
+        {
+            while (true)
+            {
+                try {
+                    queue.put(createItem());   //thread blocks if the queue is full
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+
+            }
+        };
+        new Thread(producer).start();
+        new Thread(producer).start(); //2 threads for producer
+
+        final Runnable consumer =() ->
+        {
+            while (true)
+            {
+                Item i;
+                try {
+                    i = queue.take(); // thread blocks if there is no item in the queue
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                process(i);
+            }
+
+        };
+         new Thread(consumer).start();
+         new Thread(consumer).start(); // 2 threads for Consumer
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
+    static Item createItem() {
+        // Create and return an instance of the Item class
+        return new Item();
+    }
+
+    static void process(Item i) {
+        // Process the given item
+    }
+
+
+static class Item {
+    // This is a placeholder class representing an item to be produced and consumed
+}
+
+
+}
+
